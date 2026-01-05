@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Monitoring & Evaluasi Proker FPPUKIS 2026</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; scroll-behavior: smooth; }
+        
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 350px;
+            max-height: 400px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .nav-item.active {
+            background-color: #0f172a;
+            color: #ffffff;
+            border-left: 4px solid #d97706;
+        }
+
+        .spinner {
+            border: 3px solid rgba(217, 119, 6, 0.1);
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border-left-color: #d97706;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .audio-wave {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            height: 20px;
+        }
+        .audio-wave div {
+            width: 3px;
+            height: 100%;
+            background: #d97706;
+            animation: wave 1s ease-in-out infinite;
+        }
+        @keyframes wave {
+            0%, 100% { height: 4px; }
+            50% { height: 20px; }
+        }
+
+        /* Floating Chat UI */
+        #chatbot-window {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateY(100%);
+            opacity: 0;
+            pointer-events: none;
+        }
+        #chatbot-window.open {
+            transform: translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-screen overflow-hidden flex">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white border-r border-slate-200 flex-shrink-0 hidden md:flex flex-col z-20 shadow-lg">
+        <div class="p-6 border-b border-slate-100">
+            <h1 class="text-xl font-bold text-slate-800 tracking-tight">FPPUKIS <span class="text-amber-600">Proker</span></h1>
+            <p class="text-xs text-slate-500 mt-1">Sistem Monitoring & Evaluasi</p>
+        </div>
+        <nav class="flex-1 overflow-y-auto py-4">
+            <ul class="space-y-1">
+                <li>
+                    <button onclick="navigate('dashboard')" id="nav-dashboard" class="nav-item w-full text-left px-6 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors active">
+                        📊 Ringkasan Kinerja (ICK)
+                    </button>
+                </li>
+                <li>
+                    <button onclick="navigate('timeline')" id="nav-timeline" class="nav-item w-full text-left px-6 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                        📅 Timeline Kegiatan
+                    </button>
+                </li>
+                <li>
+                    <button onclick="navigate('comparison')" id="nav-comparison" class="nav-item w-full text-left px-6 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                        ⚖️ Komparasi 2025 vs 2026
+                    </button>
+                </li>
+            </ul>
+        </nav>
+        <div class="p-4 border-t border-slate-100 space-y-2">
+            <div class="bg-amber-50 rounded-lg p-3 text-xs border border-amber-100">
+                <p class="font-semibold text-amber-800 flex items-center gap-1">
+                    <span>✨</span> Multi-AI Active
+                </p>
+                <p class="text-amber-700 mt-1">Imagen & Gemini 2.5 Terhubung.</p>
+            </div>
+            <button onclick="toggleChatbot()" class="w-full bg-slate-900 text-white py-2 rounded-lg text-xs font-bold hover:bg-slate-800 transition-all shadow-sm flex items-center justify-center gap-2">
+                <span>💬</span> Tanya Konsultan ✨
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
+        
+        <!-- Header -->
+        <header class="bg-white border-b border-slate-200 p-4 flex justify-between items-center shadow-sm z-10">
+            <div class="md:hidden">
+                <button onclick="toggleMobileMenu()" class="text-slate-600 focus:outline-none text-2xl">&#9776;</button>
+            </div>
+            <div class="hidden md:block">
+                <span class="text-sm font-medium text-slate-500 uppercase tracking-widest">Dashboard Monitoring Kinerja</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <button onclick="askGemini('quick_summary')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all">
+                    <span>✨</span> Ringkasan Strategis
+                </button>
+                <div class="h-8 w-8 bg-amber-600 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm">BI</div>
+            </div>
+        </header>
+
+        <!-- Scrollable Content Area -->
+        <div id="content-area" class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 relative">
+            
+            <!-- SECTION 1: DASHBOARD -->
+            <div id="view-dashboard" class="fade-in max-w-7xl mx-auto">
+                <div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+                    <div>
+                        <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">Capaian & Target 2026</h2>
+                        <p class="text-slate-500 mt-1">Monitoring target digitalisasi, pasar ekspor, dan literasi syariah.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="askGemini('scenario_simulator')" class="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-all shadow-md group">
+                            <span>✨</span> Simulator Strategi
+                        </button>
+                    </div>
+                </div>
+
+                <!-- KPI Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all border-b-4 border-b-emerald-500">
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Transaksi</p>
+                        <p class="text-3xl font-black text-slate-900 mt-2">Rp 8.15 M</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all border-b-4 border-b-blue-500">
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">UMKM Digital</p>
+                        <p class="text-3xl font-black text-slate-900 mt-2">12 Unit</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all border-b-4 border-b-amber-500">
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Klaster Produktif</p>
+                        <p class="text-3xl font-black text-slate-900 mt-2">2 Unit</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all border-b-4 border-b-purple-500">
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Literasi Syariah</p>
+                        <p class="text-3xl font-black text-slate-900 mt-2">Skala 4</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                            <span>📈</span> Proyeksi Keuangan (Miliar IDR)
+                        </h3>
+                        <div class="chart-container"><canvas id="financeChart"></canvas></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                            <span>🏙️</span> Struktur Target Fisik
+                        </h3>
+                        <div class="chart-container"><canvas id="umkmChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 2: TIMELINE -->
+            <div id="view-timeline" class="hidden fade-in max-w-7xl mx-auto">
+                <div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+                    <div>
+                        <h2 class="text-3xl font-bold text-slate-900 tracking-tight">Timeline Operasional</h2>
+                        <p class="text-slate-500 mt-1">Jadwal pelaksanaan program kerja prioritas 2026.</p>
+                    </div>
+                    <button onclick="askGemini('timeline_risk')" class="flex items-center gap-2 bg-amber-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-amber-700 transition-all shadow-md">
+                        <span>✨</span> Analisis Risiko Jadwal
+                    </button>
+                </div>
+                <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="chart-container" style="height: 500px;"><canvas id="timelineChart"></canvas></div>
+                </div>
+            </div>
+
+            <!-- SECTION 3: COMPARISON -->
+            <div id="view-comparison" class="hidden fade-in max-w-7xl mx-auto">
+                <div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+                    <div>
+                        <h2 class="text-3xl font-bold text-slate-900 tracking-tight">Komparasi Strategi</h2>
+                        <p class="text-slate-500 mt-1">Evolusi dari identifikasi (2025) ke target kuantitatif (2026).</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="generateVisonPoster()" class="flex items-center gap-2 border-2 border-indigo-600 text-indigo-600 px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-indigo-50 transition-all shadow-sm">
+                            <span>🖼️</span> Buat Poster Visi ✨
+                        </button>
+                        <button onclick="askGemini('innovative_ideas')" class="flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-800 transition-all shadow-md">
+                            <span>✨</span> Ide Inovasi 2026
+                        </button>
+                    </div>
+                </div>
+
+                <div id="vision-poster-container" class="hidden mb-8 fade-in">
+                    <div class="bg-indigo-900 rounded-3xl p-8 text-center text-white relative overflow-hidden">
+                        <div id="vision-image-placeholder" class="w-full h-80 bg-indigo-800/50 rounded-2xl flex items-center justify-center mb-6">
+                            <div class="spinner border-white/20 border-left-white"></div>
+                            <p class="ml-4 font-medium animate-pulse">Menghasilkan Visual Visi 2026 dengan Imagen 4...</p>
+                        </div>
+                        <h3 class="text-2xl font-black mb-2 uppercase tracking-tighter">Road to KKI 2026: Digitalisasi & Ekspor</h3>
+                        <p class="text-indigo-200 text-sm max-w-xl mx-auto">Visual ini dihasilkan secara otomatis berdasarkan target strategis tahun 2026 untuk memotivasi tim dalam mencapai target ekspor dan digitalisasi.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-slate-800 text-white p-10 rounded-3xl">
+                        <h4 class="text-amber-500 font-bold text-xs uppercase mb-4 tracking-widest">Fondasi 2025</h4>
+                        <p class="text-2xl font-medium leading-tight">Pemetaan database, kurasi awal, dan penguatan jaminan halal.</p>
+                    </div>
+                    <div class="bg-white border-2 border-amber-500 p-10 rounded-3xl shadow-xl shadow-amber-500/10">
+                        <h4 class="text-amber-600 font-bold text-xs uppercase mb-4 tracking-widest">Ekspansi 2026</h4>
+                        <p class="text-2xl font-medium leading-tight text-slate-800">Target nyata: Transaksi Rp 8.15 Miliar dan UMKM Ekspor baru.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- FLOATING CHATBOT ✨ -->
+    <div id="chatbot-window" class="fixed bottom-6 right-6 w-96 bg-white rounded-3xl shadow-2xl border border-slate-200 z-[110] flex flex-col max-h-[600px] overflow-hidden">
+        <div class="p-5 bg-slate-900 text-white flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center text-slate-900 text-xs font-bold">✨</div>
+                <div>
+                    <h4 class="font-bold text-sm">Konsultan FPPUKIS</h4>
+                    <p class="text-[10px] text-slate-400">Gemini 2.5 Intelligence</p>
+                </div>
+            </div>
+            <button onclick="toggleChatbot()" class="text-slate-400 hover:text-white transition-colors">&times;</button>
+        </div>
+        <div id="chat-messages" class="flex-1 p-5 overflow-y-auto custom-scrollbar space-y-4 text-sm bg-slate-50">
+            <div class="bg-white p-3 rounded-2xl rounded-tl-none border border-slate-200 shadow-sm max-w-[80%]">
+                Halo! Saya asisten pintar Anda. Silakan tanya apa saja terkait Program Kerja 2026 atau data ICK.
+            </div>
+        </div>
+        <div class="p-4 border-t border-slate-100 bg-white">
+            <div class="relative">
+                <input type="text" id="chat-input" onkeypress="if(event.key==='Enter') sendChatMessage()" placeholder="Ketik pertanyaan..." class="w-full pl-4 pr-12 py-3 bg-slate-100 border-none rounded-2xl text-sm focus:ring-2 focus:ring-amber-500 transition-all">
+                <button onclick="sendChatMessage()" class="absolute right-2 top-2 w-8 h-8 bg-slate-900 text-white rounded-xl flex items-center justify-center hover:bg-slate-800 transition-all">
+                    ➔
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI INSIGHT MODAL -->
+    <div id="ai-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] fade-in">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600 text-xl shadow-inner">✨</div>
+                    <div>
+                        <h3 id="ai-modal-title" class="font-black text-xl text-slate-800">Analisis Strategis</h3>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Laporan AI FPPUKIS 2026</p>
+                    </div>
+                </div>
+                <button onclick="closeAIModal()" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-200 text-slate-400 transition-all text-2xl">&times;</button>
+            </div>
+            
+            <div id="ai-content-loader" class="p-20 flex flex-col items-center justify-center hidden">
+                <div class="spinner mb-4 border-indigo-600 border-left-indigo-600"></div>
+                <p class="text-sm text-slate-500 font-bold animate-pulse">Menghitung Proyeksi & Insight...</p>
+            </div>
+
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-8">
+                <div id="ai-content" class="text-slate-700 leading-relaxed space-y-4"></div>
+                
+                <div id="audio-controls" class="mt-8 pt-8 border-t border-slate-100 hidden">
+                    <div class="bg-indigo-50 p-5 rounded-2xl flex items-center justify-between">
+                        <div class="flex items-center gap-4">
+                            <button id="play-btn" onclick="speakInsight()" class="w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-700 transition-all">
+                                <span id="play-icon" class="text-lg">▶</span>
+                            </button>
+                            <div>
+                                <p class="text-sm font-bold text-indigo-900">Dengarkan Analisis ✨</p>
+                                <p class="text-xs text-indigo-700">Audio pintar dalam Bahasa Indonesia</p>
+                            </div>
+                        </div>
+                        <div id="audio-visualizer" class="audio-wave hidden">
+                            <div style="animation-delay: 0.1s; background: #4f46e5;"></div>
+                            <div style="animation-delay: 0.3s; background: #4f46e5;"></div>
+                            <div style="animation-delay: 0.5s; background: #4f46e5;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6 border-t border-slate-100 bg-slate-50 flex justify-between items-center">
+                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Model: Gemini 2.5 Flash Preview</span>
+                <button onclick="closeAIModal()" class="px-8 py-3 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 shadow-lg transition-all">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIG & CONSTANTS ---
+        const apiKey = "";
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'fppukis-monitor-2026';
+
+        const ickData = [
+            { name: "UMKM Go Digital", target2026: 12, targetPos: 37, type: "physical" },
+            { name: "UMKM Ekspor", target2026: 1, targetPos: 7, type: "physical" },
+            { name: "Produktivitas >10%", target2026: 2, targetPos: 2, type: "physical" },
+            { name: "Akses Pembiayaan", target2026: 1, targetPos: 7, type: "physical" },
+            { name: "BM Road to KKI", target2026: 2100000000, type: "money" },
+            { name: "BM FESyar/ISEF", target2026: 1100000000, type: "money" },
+            { name: "Penjualan KKI", target2026: 3850000000, type: "money" },
+            { name: "Penjualan FESyar", target2026: 1100000000, type: "money" }
+        ];
+
+        const timelineActivities = [
+            { task: "Kurasi UMKM", start: "2026-01-01", end: "2026-03-15" },
+            { task: "Road to KKI", start: "2026-05-01", end: "2026-07-31" },
+            { task: "FESyar/ISEF", start: "2026-07-15", end: "2026-09-30" },
+            { task: "Literasi Syariah", start: "2026-04-01", end: "2026-11-15" },
+            { task: "Monitoring Akhir", start: "2026-11-01", end: "2026-12-31" }
+        ];
+
+        let currentInsightText = "";
+        let currentAudio = null;
+
+        // --- GEMINI API HELPERS ---
+
+        async function fetchGemini(prompt, systemInstruction) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: systemInstruction }] }
+            };
+
+            let delay = 1000;
+            for (let i = 0; i < 5; i++) {
+                try {
+                    const res = await fetch(url, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                    if (!res.ok) throw new Error("API Connection Failed");
+                    const data = await res.json();
+                    return data.candidates?.[0]?.content?.parts?.[0]?.text;
+                } catch (e) {
+                    if (i === 4) return "Maaf, sistem sedang sibuk. Mohon coba sesaat lagi.";
+                    await new Promise(r => setTimeout(r, delay));
+                    delay *= 2;
+                }
+            }
+        }
+
+        async function fetchGeminiTTS(text) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: `Say professionally and clearly in Indonesian: ${text.substring(0, 1000)}` }] }],
+                generationConfig: {
+                    responseModalities: ["AUDIO"],
+                    speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Puck" } } }
+                }
+            };
+
+            try {
+                const res = await fetch(url, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                const data = await res.json();
+                const pcmData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+                const sampleRate = parseInt(data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType.split('rate=')[1]) || 24000;
+                return { pcmData, sampleRate };
+            } catch (e) {
+                return null;
+            }
+        }
+
+        async function fetchImagen(promptText) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
+            const payload = { instances: [{ prompt: promptText }], parameters: { sampleCount: 1 } };
+
+            try {
+                const res = await fetch(url, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                const result = await res.json();
+                return `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+            } catch (e) {
+                console.error("Imagen Error:", e);
+                return null;
+            }
+        }
+
+        function pcmToWav(base64Pcm, sampleRate) {
+            const binaryString = atob(base64Pcm);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
+            const pcmBuffer = bytes.buffer;
+
+            const wavHeader = new ArrayBuffer(44);
+            const view = new DataView(wavHeader);
+            const writeString = (offset, string) => {
+                for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
+            };
+
+            writeString(0, 'RIFF');
+            view.setUint32(4, 36 + pcmBuffer.byteLength, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, 1, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(36, 'data');
+            view.setUint32(40, pcmBuffer.byteLength, true);
+
+            const combined = new Uint8Array(wavHeader.byteLength + pcmBuffer.byteLength);
+            combined.set(new Uint8Array(wavHeader), 0);
+            combined.set(new Uint8Array(pcmBuffer), wavHeader.byteLength);
+            return new Blob([combined], { type: 'audio/wav' });
+        }
+
+        // --- ACTIONS ---
+
+        async function askGemini(mode) {
+            const modal = document.getElementById('ai-modal');
+            const content = document.getElementById('ai-content');
+            const loader = document.getElementById('ai-content-loader');
+            const title = document.getElementById('ai-modal-title');
+            const audioControls = document.getElementById('audio-controls');
+
+            modal.classList.remove('hidden');
+            content.innerHTML = '';
+            loader.classList.remove('hidden');
+            audioControls.classList.add('hidden');
+            if(currentAudio) { currentAudio.pause(); currentAudio = null; }
+
+            let system = "Anda adalah Konsultan Strategis Senior di Bank Indonesia. Jawaban Anda harus berwibawa, analitis, dan sangat solutif. Gunakan Bahasa Indonesia formal.";
+            let prompt = "";
+
+            if (mode === 'scenario_simulator') {
+                title.innerText = "Simulator Strategi Agresif";
+                prompt = `Data target 2026: ${JSON.stringify(ickData)}. Simulasikan jika anggaran pemasaran digital dinaikkan 50%, apa dampak realistis pada UMKM Go Digital dan UMKM Ekspor? Berikan 3 poin analisis.`;
+            } else if (mode === 'timeline_risk') {
+                title.innerText = "Manajemen Risiko Jadwal";
+                prompt = `Jadwal kegiatan: ${JSON.stringify(timelineActivities)}. Identifikasi periode paling berisiko terjadinya 'burnout' tim atau bentrok logistik. Berikan solusi preventif.`;
+            } else if (mode === 'innovative_ideas') {
+                title.innerText = "Generator Inovasi 2026";
+                prompt = `Berdasarkan perbandingan tahun 2025 ke 2026, berikan 1 ide inovatif yang mengintegrasikan teknologi blockchain atau AI untuk UMKM Kalimantan Tengah agar target ekspor Rp 8 Miliar lebih mudah tercapai.`;
+            } else if (mode === 'quick_summary') {
+                title.innerText = "Executive Strategic Brief";
+                prompt = `Berikan ringkasan eksekutif dalam 100 kata mengenai prioritas utama FPPUKIS 2026 agar pimpinan dapat mengambil keputusan cepat.`;
+            }
+
+            try {
+                const text = await fetchGemini(prompt, system);
+                currentInsightText = text;
+                content.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<b class="text-slate-900">$1</b>').replace(/\n/g, '<br>');
+                audioControls.classList.remove('hidden');
+            } catch (e) {
+                content.innerHTML = "Gagal memproses analisis AI.";
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        async function speakInsight() {
+            if (currentAudio) {
+                if (!currentAudio.paused) {
+                    currentAudio.pause();
+                    document.getElementById('play-icon').innerText = '▶';
+                    document.getElementById('audio-visualizer').classList.add('hidden');
+                    return;
+                } else {
+                    currentAudio.play();
+                    document.getElementById('play-icon').innerText = '⏸';
+                    document.getElementById('audio-visualizer').classList.remove('hidden');
+                    return;
+                }
+            }
+
+            const icon = document.getElementById('play-icon');
+            const visualizer = document.getElementById('audio-visualizer');
+            
+            icon.innerText = '⌛';
+            const result = await fetchGeminiTTS(currentInsightText);
+            
+            if (result && result.pcmData) {
+                const blob = pcmToWav(result.pcmData, result.sampleRate);
+                currentAudio = new Audio(URL.createObjectURL(blob));
+                currentAudio.play();
+                icon.innerText = '⏸';
+                visualizer.classList.remove('hidden');
+                currentAudio.onended = () => { icon.innerText = '▶'; visualizer.classList.add('hidden'); };
+            } else {
+                icon.innerText = '❌';
+            }
+        }
+
+        async function generateVisonPoster() {
+            const container = document.getElementById('vision-poster-container');
+            const placeholder = document.getElementById('vision-image-placeholder');
+            container.classList.remove('hidden');
+            placeholder.innerHTML = '<div class="spinner border-white/20 border-left-white"></div><p class="ml-4 font-medium animate-pulse text-white">Gemini Imagen 4 sedang melukis visi Anda...</p>';
+            
+            const prompt = "A futuristic 3D cinematic visualization of a traditional Kalimantan UMKM (small business) going global, digital connections, world map background, professional lighting, Indonesian Bank office vibe, 4k high quality, symbol of success and growth.";
+            
+            const imageUrl = await fetchImagen(prompt);
+            if (imageUrl) {
+                placeholder.innerHTML = `<img src="${imageUrl}" class="w-full h-full object-cover rounded-2xl shadow-xl" alt="Vision 2026">`;
+            } else {
+                placeholder.innerHTML = `<div class="p-8 text-white">Gagal memuat visual. Imagen 4 mungkin sedang sibuk.</div>`;
+            }
+        }
+
+        // --- CHATBOT LOGIC ✨ ---
+        function toggleChatbot() {
+            document.getElementById('chatbot-window').classList.toggle('open');
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const messages = document.getElementById('chat-messages');
+            const text = input.value.trim();
+            if (!text) return;
+
+            // Add User Message
+            messages.innerHTML += `<div class="flex justify-end"><div class="bg-slate-900 text-white p-3 rounded-2xl rounded-tr-none max-w-[80%]">${text}</div></div>`;
+            input.value = '';
+            messages.scrollTop = messages.scrollHeight;
+
+            // Get AI Response
+            const system = "Anda adalah Konsultan Pintar FPPUKIS 2026. Jawab pertanyaan dengan singkat, padat, dan akurat berdasarkan konteks dashboard.";
+            const response = await fetchGemini(`Pertanyaan User: ${text}. Data Konteks ICK: ${JSON.stringify(ickData)}`, system);
+            
+            // Add AI Message
+            messages.innerHTML += `<div><div class="bg-white p-3 rounded-2xl rounded-tl-none border border-slate-200 shadow-sm max-w-[80%]">${response}</div></div>`;
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function closeAIModal() {
+            document.getElementById('ai-modal').classList.add('hidden');
+            if(currentAudio) { currentAudio.pause(); currentAudio = null; }
+        }
+
+        // --- UI & CHART LOGIC ---
+        function toggleMobileMenu() {
+            const sidebar = document.querySelector('aside');
+            sidebar.classList.toggle('hidden');
+            sidebar.classList.toggle('flex');
+            sidebar.classList.toggle('fixed');
+            sidebar.classList.toggle('inset-0');
+            sidebar.classList.toggle('w-full');
+        }
+
+        function navigate(viewId) {
+            ['dashboard', 'timeline', 'comparison'].forEach(id => {
+                document.getElementById('view-' + id).classList.add('hidden');
+                document.getElementById('nav-' + id).classList.remove('active');
+            });
+            document.getElementById('view-' + viewId).classList.remove('hidden');
+            document.getElementById('nav-' + viewId).classList.add('active');
+        }
+
+        function initCharts() {
+            const fCtx = document.getElementById('financeChart').getContext('2d');
+            new Chart(fCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['BM KKI', 'BM FESyar', 'Jual KKI', 'Jual FESyar'],
+                    datasets: [{
+                        data: [2.1, 1.1, 3.85, 1.1],
+                        backgroundColor: ['#10b981', '#34d399', '#f59e0b', '#fbbf24'],
+                        borderRadius: 8
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+
+            const uCtx = document.getElementById('umkmChart').getContext('2d');
+            new Chart(uCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Go Digital', 'Ekspor', 'Produktivitas', 'Pembiayaan'],
+                    datasets: [{
+                        data: [12, 1, 2, 1],
+                        backgroundColor: ['#3b82f6', '#818cf8', '#f43f5e', '#10b981'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '75%' }
+            });
+
+            const tCtx = document.getElementById('timelineChart').getContext('2d');
+            new Chart(tCtx, {
+                type: 'bar',
+                data: {
+                    labels: timelineActivities.map(t => t.task),
+                    datasets: [{
+                        data: timelineActivities.map(t => [new Date(t.start).getMonth() + 0.5, new Date(t.end).getMonth() + 0.5]),
+                        backgroundColor: '#d97706',
+                        borderRadius: 20
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { x: { min: 0, max: 12, ticks: { callback: v => ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'][Math.floor(v)] } } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            navigate('dashboard');
+        });
+    </script>
+</body>
+</html>
